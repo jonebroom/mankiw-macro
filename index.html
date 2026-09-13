@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f5f3ec" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141512" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>曼昆《宏观经济学》题库复习</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%23f5f3ec'/%3E%3Crect x='6' y='6' width='52' height='52' rx='6' fill='none' stroke='%232b4a6f' stroke-width='2'/%3E%3Ctext x='32' y='44' font-size='32' text-anchor='middle' fill='%232b4a6f' font-family='Georgia, serif' font-weight='bold'%3EM%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="style.css?v=20260914-000307">
+</head>
+<body>
+<header id="topbar">
+  <button id="btn-back" class="icon-btn" hidden aria-label="返回">‹</button>
+  <div id="topbar-title">曼昆《宏观经济学》题库</div>
+  <span id="sync-dot" class="sync-dot off" onclick="location.hash='#/stats'" title="云同步"></span>
+  <button id="btn-dark" class="icon-btn" aria-label="切换主题">☾</button>
+</header>
+
+<main id="view"></main>
+
+<nav id="tabbar">
+  <button class="tab active" data-view="home"><span>首页</span></button>
+  <button class="tab" data-view="wrong"><span>错题</span></button>
+  <button class="tab" data-view="vocab"><span>生词</span></button>
+  <button class="tab" data-view="stats"><span>统计</span></button>
+</nav>
+
+<div id="popup" hidden></div>
+<div id="overlay" hidden></div>
+
+<script src="data.js?v=20260914-000307"></script>
+<script src="dict.js?v=20260914-000307"></script>
+<script src="config.js?v=20260914-000307"></script>
+<script src="sync.js?v=20260914-000307"></script>
+<script src="app.js?v=20260914-000307"></script>
+</body>
+</html>

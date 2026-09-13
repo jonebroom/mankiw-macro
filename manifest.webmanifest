@@ -1,0 +1,14 @@
+{
+  "name": "曼昆《宏观经济学》题库",
+  "short_name": "宏观题库",
+  "description": "曼昆《宏观经济学》第10版英文题库：刷题、翻译、查词、错题本",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#f5f3ec",
+  "theme_color": "#2b4a6f",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
