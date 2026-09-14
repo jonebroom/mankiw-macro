@@ -184,8 +184,13 @@
         location.reload();
         return;
       }
-      if (!remote && localTs() > 0) await push(); // 首次在此设备使用，但本地有数据 → 上传
-      else if (remote) setLocalTs(remote.ts);
+      // 需要上传的情况：无云端存档、云端较旧、或云端是刚建的空存档而本地已有数据
+      const hasData = Object.keys(collect().data).length > 0;
+      if (!remote || remote.ts < localTs() || (remote.ts === 0 && hasData)) {
+        await push();
+      } else if (remote) {
+        setLocalTs(remote.ts);
+      }
       localStorage.setItem(PREFIX + 'syncTime', String(Date.now()));
       setStatus('idle');
     } catch (e) {
