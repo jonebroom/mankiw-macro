@@ -12,14 +12,81 @@
     const c = Object.assign(lsCfg(), patch);
     localStorage.setItem('mankiw.syncCfg', JSON.stringify(c));
   }
-  function confOk() { const c = CFG(); return !!(c.appId && c.appKey); }
-  function apiBase() {
+  function confOk() { return mode() !== 'off'; }
+  // 后端：github = GitHub Gist（推荐，零注册）；lc = LeanCloud（自建应用）
+  function mode() {
+    const c = CFG();
+    if (c.githubToken) return 'github';
+    if (c.appId && c.appKey) return 'lc';
+    return 'off';
+  }
+  // ---- LeanCloud ----
+  function lcApiBase() {
     const c = CFG();
     return (c.apiServer || ('https://' + c.appId + '.api.lncld.net')) + '/1.1/classes/' + CLASS;
   }
-  function headers() {
+  function lcHeaders() {
     const c = CFG();
     return { 'X-LC-Id': c.appId, 'X-LC-Key': c.appKey, 'Content-Type': 'application/json' };
+  }
+  // ---- GitHub Gist ----
+  const GIST_FILE = 'mankiw-sync.json';
+  function ghHeaders() {
+    return { 'Authorization': 'Bearer ' + CFG().githubToken, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' };
+  }
+  async function ghEnsure() {
+    let id = localStorage.getItem(PREFIX + 'gistId');
+    if (id) return id;
+    // 先找本账号下已有的同步存档（换设备时凭同一份令牌找到它）
+    const list = await (await fetch('https://api.github.com/gists?per_page=100', { headers: ghHeaders() })).json();
+    if (Array.isArray(list)) {
+      const hit = list.find(g => g.files && g.files[GIST_FILE]);
+      if (hit) { id = hit.id; localStorage.setItem(PREFIX + 'gistId', id); return id; }
+    }
+    // 没有就新建一个仅自己可见的存档
+    const created = await (await fetch('https://api.github.com/gists', {
+      method: 'POST', headers: ghHeaders(),
+      body: JSON.stringify({ description: '曼昆宏观题库学习数据同步（自动生成，勿删）', public: false, files: { [GIST_FILE]: { content: JSON.stringify({ v: 1, ts: 0, data: {} }) } } })
+    })).json();
+    if (!created.id) throw new Error('创建云端存档失败');
+    id = created.id;
+    localStorage.setItem(PREFIX + 'gistId', id);
+    return id;
+  }
+  async function ghGet() {
+    const id = await ghEnsure();
+    const r = await fetch('https://api.github.com/gists/' + id, { headers: ghHeaders() });
+    if (r.status === 404) { localStorage.removeItem(PREFIX + 'gistId'); return ghGet(); }
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const g = await r.json();
+    const f = g.files && g.files[GIST_FILE];
+    if (!f) return null;
+    return JSON.parse(f.content || '{"ts":0,"data":{}}');
+  }
+  async function ghPut(payload) {
+    const id = await ghEnsure();
+    const r = await fetch('https://api.github.com/gists/' + id, {
+      method: 'PATCH', headers: ghHeaders(),
+      body: JSON.stringify({ files: { [GIST_FILE]: { content: JSON.stringify(payload) } } })
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }
+  // ---- 统一出口 ----
+  async function remoteGet() {
+    if (mode() === 'github') return ghGet();
+    const r = await fetch(lcApiBase() + '/' + encodeURIComponent(syncId()), { headers: lcHeaders() });
+    if (r.status === 404) return null;
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }
+  async function remotePut(payload) {
+    if (mode() === 'github') return ghPut(payload);
+    const r = await fetch(lcApiBase() + '/' + encodeURIComponent(syncId()), {
+      method: 'PUT', headers: lcHeaders(), body: JSON.stringify(payload)
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
   }
   const SYNC_KEYS = ['wrong', 'notes', 'fav', 'done', 'vocab', 'daily', 'lastQuiz', 'examState'];
   const CLASS = 'SyncData';
@@ -80,20 +147,7 @@
   }
   function setStatus(s) { status = s; renderStatus(); }
 
-  // ---- 网络 ----
-  async function remoteGet() {
-    const r = await fetch(apiBase() + '/' + encodeURIComponent(syncId()), { headers: headers() });
-    if (r.status === 404) return null;
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    return r.json();
-  }
-  async function remotePut(payload) {
-    const r = await fetch(apiBase() + '/' + encodeURIComponent(syncId()), {
-      method: 'PUT', headers: headers(), body: JSON.stringify(payload)
-    });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    return r.json();
-  }
+  // ---- 网络（统一出口见 remoteGet/remotePut）----
 
   // ---- 推送（防抖）----
   let timer = null, pushing = false, dirtyAgain = false;
@@ -141,12 +195,12 @@
 
   // ---- 手动操作 ----
   async function forceUpload() {
-    if (!confOk()) return { ok: false, msg: '请先填写 AppID / AppKey' };
+    if (!confOk()) return { ok: false, msg: '请先保存 GitHub 令牌' };
     await push();
     return status === 'idle' ? { ok: true, msg: '已上传到云端' } : { ok: false, msg: '上传失败，检查网络与配置' };
   }
   async function forceDownload() {
-    if (!confOk()) return { ok: false, msg: '请先填写 AppID / AppKey' };
+    if (!confOk()) return { ok: false, msg: '请先保存 GitHub 令牌' };
     try {
       const remote = await remoteGet();
       if (!remote) return { ok: false, msg: '云端没有存档（可先用这台设备上传一次）' };
@@ -159,6 +213,7 @@
   }
   function resetSync() {
     localStorage.removeItem(PREFIX + 'syncId');
+    localStorage.removeItem(PREFIX + 'gistId');
     localStorage.removeItem(PREFIX + 'syncTs');
     localStorage.removeItem(PREFIX + 'syncTime');
   }

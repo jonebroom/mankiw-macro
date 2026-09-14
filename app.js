@@ -808,12 +808,11 @@ function renderStats(el) {
       <div class="btn-row">
         <button class="btn grow" id="btn-sync-off" style="color:var(--bad)">停用同步（保留本机数据）</button>
       </div>` : `
-      <input class="pm-input" id="sync-appid" placeholder="LeanCloud AppID" autocomplete="off">
-      <input class="pm-input" id="sync-appkey" placeholder="LeanCloud AppKey" autocomplete="off">
+      <input class="pm-input" id="sync-token" placeholder="GitHub 访问令牌（ghp_ 开头）" autocomplete="off" type="password">
       <div class="btn-row" style="margin-top:8px">
         <button class="btn primary grow" id="btn-sync-save">保存并启用同步</button>
       </div>
-      <div class="muted" style="margin-top:8px">还没有？到 leancloud.cn 注册 → 创建应用（开发版免费）→ 设置 → 应用 Key，把 AppID / AppKey 粘贴到这里。</div>`}
+      <div class="muted" style="margin-top:8px">需要一个带 <b>gist</b> 权限的 GitHub 令牌：github.com/settings/tokens/new → 勾 <b>gist</b> → Generate。令牌只保存在这台设备上，仅用于读写你自己的同步存档。</div>`}
     </div>`;
   el.querySelector('#btn-export').addEventListener('click', exportData);
   el.querySelector('#btn-import').addEventListener('click', () => el.querySelector('#import-file').click());
@@ -838,10 +837,10 @@ function renderStats(el) {
     });
   } else {
     el.querySelector('#btn-sync-save').addEventListener('click', async e => {
-      const id = el.querySelector('#sync-appid').value.trim();
-      const key = el.querySelector('#sync-appkey').value.trim();
-      if (!id || !key) { showToast('请填写 AppID 和 AppKey'); return; }
-      Sync.saveConfig({ appId: id, appKey: key });
+      const tok = el.querySelector('#sync-token').value.trim();
+      if (!tok) { showToast('请填写 GitHub 令牌'); return; }
+      e.target.disabled = true;
+      Sync.saveConfig({ githubToken: tok, appId: '', appKey: '' });
       showToast('已保存，正在连接云端…');
       await Sync.pullOnStart();
       renderStats(el); Sync.renderStatus();
