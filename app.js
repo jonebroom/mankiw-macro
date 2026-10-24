@@ -20,10 +20,40 @@ let topicById = {};
 const LS = {
   get(k, d) { try { const v = localStorage.getItem('mankiw.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) {
-    try { localStorage.setItem('mankiw.' + k, JSON.stringify(v)); } catch (e) {}
+    try { localStorage.setItem('mankiw.' + k, JSON.stringify(v)); }
+    catch (e) { storageFail(k, e); }
     if (window.Sync && Sync.SYNC_KEYS.includes(k)) Sync.markDirty();
+    if (window.Backup && Backup.WATCH_KEYS.includes(k)) Backup.markDirty();
   }
 };
+// ===== 存储可用性自检 =====
+// 无痕模式 / 配额满 / 存储被禁用时，写入会失败。若不提示，用户会以为记住了其实没存。
+let storageBroken = false;
+function storageFail(key, err) {
+  if (storageBroken) return;
+  storageBroken = true;
+  console.warn('[storage] 写入失败', key, err);
+  showStorageWarning('⚠️ 浏览器无法保存学习进度（可能处于无痕模式或存储已满），本次记录不会保留。');
+}
+function storageCheck() {
+  try {
+    localStorage.setItem('mankiw.__probe', '1');
+    localStorage.removeItem('mankiw.__probe');
+    storageBroken = false;
+    return true;
+  } catch (e) {
+    storageBroken = true;
+    showStorageWarning('⚠️ 当前浏览器无法保存学习进度（可能处于无痕模式或存储已满），本次记录不会保留。');
+    return false;
+  }
+}
+function showStorageWarning(msg) {
+  if (document.getElementById('storage-warn')) return;
+  const d = document.createElement('div');
+  d.id = 'storage-warn';
+  d.textContent = msg;
+  document.body.insertBefore(d, document.body.firstChild);
+}
 let wrong = LS.get('wrong', {});
 // 错题间隔重复：{ due: 'YYYY-MM-DD', stage: 0..4 }，stage 对应 SRS_INTERVALS
 // 0=今天该复习 1=+1天 2=+3天 3=+7天 4=+15天，第 4 档答对即毕业移出
@@ -166,6 +196,7 @@ function showToast(msg) {
   setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 2600);
 }
 async function init() {
+  storageCheck();
   DATA = window.MANKIW_DATA || await fetch('data/questions.json').then(r => r.json());
   // 数据版本检测：资源版本号变化说明题库已更新（配合 index.html ?v= 缓存刷新）
   const build = window.DATA_BUILD || '';
@@ -184,6 +215,12 @@ async function init() {
   for (const t of (DATA.topics || [])) topicById[t.id] = t;
   bindUI();
   route();
+  // 本地文件自动备份（可选，用户在统计页开启）
+  if (window.Backup) { Backup.init(); window.onBackupStatusChange = () => route(); }
+  // Service Worker：首次打开后即可完全离线使用（file:// 下浏览器不允许注册）
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
 }
 
 // ===== UI 绑定 =====
@@ -310,6 +347,11 @@ function renderHome(el) {
       </div>
     </div>
     ${contHtml}
+    <div class="muted" style="font-size:12px;text-align:center;margin:-4px 0 12px">
+      ${window.Backup && Backup.status().on
+        ? '🔒 学习数据存在本机，未上传 · 自动备份已开启（' + esc(Backup.status().fileName || '本地文件') + '）'
+        : '🔒 学习数据只存在本机浏览器，不会上传 · <span onclick="location.hash=\'#/stats\'" style="cursor:pointer;color:var(--accent)">开启自动备份到文件 ›</span>'}
+    </div>
     <div class="cont-card" style="border-left-color:var(--warn)" onclick="location.hash='#/exam'">
       <div>
         <div class="t">模拟测验</div>
@@ -797,6 +839,11 @@ function renderStats(el) {
       </div>
     </div>
     <div class="card" style="margin-top:12px">
+      <h2>自动备份到文件</h2>
+      <div class="muted" style="margin-bottom:10px">开启后，每次做题都会自动把学习数据写进你指定的一个本地 json 文件。换设备、清缓存后用它一键恢复。文件只保存在你自己的电脑上。</div>
+      ${backupCardHtml()}
+    </div>
+    <div class="card" style="margin-top:12px">
       <h2>云同步</h2>
       <div class="muted" style="margin-bottom:10px">配置后学习数据自动同步到云端，换设备打开网页自动恢复。数据仅存你自己的云端存档位，无需注册账号。</div>
       ${Sync.isOn() ? `
@@ -818,6 +865,38 @@ function renderStats(el) {
   el.querySelector('#btn-import').addEventListener('click', () => el.querySelector('#import-file').click());
   el.querySelector('#import-file').addEventListener('change', importData);
   el.querySelector('#btn-reset').addEventListener('click', resetData);
+  // 自动备份到本地文件
+  const bOn = el.querySelector('#btn-backup-on');
+  if (bOn) bOn.addEventListener('click', async () => {
+    bOn.disabled = true;
+    const r = await Backup.enable();
+    showToast(r.msg);
+    renderStats(el);
+  });
+  const bNow = el.querySelector('#btn-backup-now');
+  if (bNow) bNow.addEventListener('click', async () => {
+    bNow.disabled = true;
+    const r = await Backup.saveNow();
+    showToast(r.msg);
+    renderStats(el);
+  });
+  const bRestore = el.querySelector('#btn-backup-restore');
+  if (bRestore) bRestore.addEventListener('click', async () => {
+    if (!confirm('用备份文件覆盖当前学习数据？\n当前未备份的进度会丢失。')) return;
+    bRestore.disabled = true;
+    const r = await Backup.restore();
+    if (!r.ok) { showToast(r.msg); renderStats(el); return; }
+    applyBackupData(r.data);
+    showToast('已从备份恢复，正在重新加载…');
+    setTimeout(() => location.reload(), 600);
+  });
+  const bOff = el.querySelector('#btn-backup-off');
+  if (bOff) bOff.addEventListener('click', async () => {
+    if (!confirm('关闭自动备份？\n浏览器内的数据会保留，备份文件也不再更新。')) return;
+    const r = await Backup.disable();
+    showToast(r.msg);
+    renderStats(el);
+  });
   if (Sync.isOn()) {
     el.querySelector('#btn-sync-up').addEventListener('click', async e => {
       e.target.disabled = true;
@@ -847,8 +926,35 @@ function renderStats(el) {
     });
   }
 }
+function backupCardHtml() {
+  if (!window.Backup || !Backup.supported()) {
+    return `<div class="muted">当前浏览器不支持自动写文件（Chrome / Edge 支持）。可先用上面的「导出」手动备份。</div>`;
+  }
+  const s = Backup.status();
+  if (!s.on) {
+    return `<div class="btn-row">
+        <button class="btn primary grow" id="btn-backup-on">开启自动备份</button>
+      </div>
+      <div class="muted" style="margin-top:8px">点开后选择保存位置（建议放在网盘同步目录或桌面），之后每次做题都会自动写入。</div>`;
+  }
+  return `<div class="muted" style="margin-bottom:8px">备份文件：<b>${esc(s.fileName || '—')}</b> · ${Backup.lastSaveText()}${s.needPermission ? ' · <span style="color:var(--warn)">需要重新授权</span>' : ''}</div>
+    <div class="btn-row">
+      <button class="btn grow" id="btn-backup-now">立即备份</button>
+      <button class="btn grow" id="btn-backup-restore">从备份恢复</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn grow" id="btn-backup-off" style="color:var(--bad)">关闭自动备份</button>
+    </div>`;
+}
+function applyBackupData(d) {
+  for (const k of ['wrong', 'notes', 'fav', 'done', 'vocab', 'daily', 'lastQuiz', 'examState', 'lang', 'order']) {
+    if (d[k] != null) LS.set(k, d[k]);
+  }
+}
 function resetData() {
   if (!confirm('确定清空所有学习数据？\n做题进度、错题、收藏、笔记、生词、打卡记录都将删除，且不可恢复。')) return;
+  // 清空时先关掉自动备份，避免把备份文件也覆盖成空数据（保留最后一份好备份）
+  if (window.Backup && Backup.status().on) { Backup.disable(); showToast('已关闭自动备份，备份文件保持原样'); }
   for (const k of ['wrong', 'notes', 'fav', 'done', 'vocab', 'daily', 'lastQuiz', 'examState']) LS.set(k, (k === 'notes' || k === 'vocab') ? {} : null);
   location.reload();
 }
