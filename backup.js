@@ -190,10 +190,12 @@
           const once = async () => {
             document.removeEventListener('click', once, true);
             const granted = await ensurePermission(true);
-            if (granted) { await saveNow(); if (global.onBackupStatusChange) global.onBackupStatusChange(); }
+            if (granted) { await saveNow(); }
+            if (global.onBackupStatusChange) global.onBackupStatusChange();
           };
           document.addEventListener('click', once, true);
         }
+        if (global.onBackupStatusChange) global.onBackupStatusChange();
       }
     } catch (e) {}
   }
