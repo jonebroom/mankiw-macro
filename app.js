@@ -245,7 +245,11 @@ function bindUI() {
     else if (e.key === 'ArrowRight') document.getElementById('btn-next')?.click();
     else {
       const i = 'abcde12345'.indexOf(e.key.toLowerCase());
-      if (i >= 0) document.querySelectorAll('#opts .opt')[i % 5]?.click();
+      if (i >= 0) {
+        // 选项改成双击作答，键盘快捷键同步触发双击
+        const opt = document.querySelectorAll('#opts .opt')[i % 5];
+        if (opt) opt.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+      }
     }
   });
   // 手机滑动手势切题（横向滑动，纵向滚动不误触）
@@ -664,6 +668,7 @@ function renderOptions(el, q, k, last) {
   const letters = ['A', 'B', 'C', 'D', 'E'];
   const optsEl = el.querySelector('#opts');
   const fb = el.querySelector('#fb');
+  optsEl.insertAdjacentHTML('beforebegin', `<div class="opt-tip">双击选项作答 · 单击英文单词可查词（键盘 A–E / 1–5 也可以）</div>`);
   if (last) fb.innerHTML = `<div class="muted" style="margin-bottom:8px">上次结果：${last==='ok'?'答对 ✓':'答错 ✗'}（可重做）</div>`;
   let answered = false;
   opts.forEach((o, i) => {
@@ -674,7 +679,9 @@ function renderOptions(el, q, k, last) {
       ? `<span class="opt-letter">${letters[i]}.</span> ${esc((zhOpts && zhOpts[i]) || o)}`
       : `<span class="opt-letter">${letters[i]}.</span> ${renderRich(o)}` +
         (lang === 'both' && zhOpts && zhOpts[i] ? `<span class="opt-zh">${esc(zhOpts[i])}</span>` : '');
-    b.addEventListener('click', () => {
+    // 双击才作答：单击留给"点词查词"，避免想查个词却把题答了
+    b.addEventListener('dblclick', (e) => {
+      if (e.target && e.target.closest && e.target.closest('.w')) return;  // 双击在单词上 → 只查词
       if (answered) return;
       answered = true;
       const correct = letters[i] === q.answer;
@@ -1091,6 +1098,7 @@ function renderExamRun(el) {
         ${langSegHtml(hasZh)}
       </div>
       ${stemHtml(q)}
+      <div class="opt-tip">双击选项作答 · 单击英文单词可查词</div>
       <div id="opts"></div>
     </div>
     <div class="quiz-nav">
@@ -1121,7 +1129,9 @@ function renderExamRun(el) {
       ? `<span class="opt-letter">${letters[i]}.</span> ${esc((zhOpts && zhOpts[i]) || o)}`
       : `<span class="opt-letter">${letters[i]}.</span> ${renderRich(o)}` +
         (lang === 'both' && zhOpts && zhOpts[i] ? `<span class="opt-zh">${esc(zhOpts[i])}</span>` : '');
-    b.addEventListener('click', () => {
+    // 双击才选中：单击留给"点词查词"，避免误选
+    b.addEventListener('dblclick', (e) => {
+      if (e.target && e.target.closest && e.target.closest('.w')) return;
       exam.answers[k] = letters[i];
       saveExam();
       optsEl.querySelectorAll('.opt').forEach(x => x.classList.remove('selected'));
