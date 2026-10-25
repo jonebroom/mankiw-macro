@@ -96,6 +96,32 @@ function qkeys(arr) { return '[' + arr.map(k => `'${jsq(k)}'`).join(',') + ']'; 
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+// ===== 参考答案渲染 =====
+// 新版解析为结构化文本：【要点】…【公式/推导】…【术语】…【易错】…
+const ANS_SEC_CLASS = { '要点': 'key', '公式/推导': 'formula', '术语': 'term', '易错': 'trap' };
+function ansPlainText(txt) { return String(txt || '').replace(/【[^】]*】/g, '').trim(); }
+function renderAnsHtml(txt) {
+  const s = String(txt || '');
+  if (!s.trim()) return '';
+  const parts = s.split(/(【[^】]+】)/);
+  let html = '', cur = null, buf = [];
+  const flush = () => {
+    if (!cur) return;
+    const body = buf.join('\n').trim();
+    if (!body) return;
+    const cls = ANS_SEC_CLASS[cur] || 'key';
+    html += `<div class="ans-sec ${cls}"><div class="ans-hd">${esc(cur)}</div><div class="ans-bd">${esc(body)}</div></div>`;
+    buf = [];
+  };
+  for (const p of parts) {
+    const m = p.match(/^【([^】]+)】$/);
+    if (m) { flush(); cur = m[1]; }
+    else if (cur) buf.push(p);
+  }
+  flush();
+  // 没有结构化标签时退回纯文本
+  return html || `<div class="ans-bd">${esc(s)}</div>`;
+}
 // 包裹可点单词（跳过 HTML 实体，避免 &amp; 被拆坏）
 function wrapWords(escapedHtml) {
   const ents = [];
@@ -611,7 +637,7 @@ function renderQuiz(el) {
         ? `<div id="opts"></div><div id="fb"></div>`
         : `${q.answer_ref
            ? `<button class="btn grow ans-toggle" id="sa-ans-btn">显示参考答案</button>
-              <div class="ans-box" id="sa-ans" hidden>${esc(q.answer_ref)}</div>`
+              <div class="ans-box" id="sa-ans" hidden>${renderAnsHtml(q.answer_ref)}</div>`
            : `<div class="muted" style="margin-bottom:10px">简答题暂无参考答案，对照中文翻译自测后标记掌握情况。</div>`}
            <div class="btn-row">
              <button class="btn grow" id="sa-ok">会 做</button>
@@ -1249,7 +1275,7 @@ function renderExamResult(el) {
       const { chapter, question: q } = qIndex[k];
       const mine = r.answers[k] || '未答';
       const ansLine = q.type === 'sa'
-        ? `你的自评 <b class="bad">${mine === 'ok' ? '会做' : '不会'}</b> · <span class="muted">参考答案：${esc((q.answer_ref || '无').slice(0, 60))}${(q.answer_ref || '').length > 60 ? '…' : ''}</span>`
+        ? `你的自评 <b class="bad">${mine === 'ok' ? '会做' : '不会'}</b> · <span class="muted">参考答案：${esc((ansPlainText(q.answer_ref) || '无').slice(0, 60))}${(ansPlainText(q.answer_ref) || '').length > 60 ? '…' : ''}</span>`
         : `你的答案 <b class="bad">${mine}</b> · 正确答案 <b class="ok">${q.answer}</b>`;
       wl.insertAdjacentHTML('beforeend', `
         <div class="list-item" onclick="startQuiz(['${k}'])">

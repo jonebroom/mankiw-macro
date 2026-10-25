@@ -1,6 +1,6 @@
 /* Service Worker —— 让网页首次打开后可以完全离线使用
    注意：file:// 直接双击打开时浏览器不允许注册 SW，此时靠 data.js 内联数据仍可离线运行。 */
-const CACHE = 'mankiw-macro-20261024-215715';   // 构建时由 tools/build_web.py 自动改成版本号，改了网页资源务必重新构建
+const CACHE = 'mankiw-macro-20261025-090830';   // 构建时由 tools/build_web.py 自动改成版本号，改了网页资源务必重新构建
 const CORE = [
   './',
   './index.html',
