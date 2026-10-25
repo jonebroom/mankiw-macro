@@ -1,6 +1,6 @@
 /* Service Worker —— 让网页首次打开后可以完全离线使用
    注意：file:// 直接双击打开时浏览器不允许注册 SW，此时靠 data.js 内联数据仍可离线运行。 */
-const CACHE = 'mankiw-macro-20261025-093548';   // 构建时由 tools/build_web.py 自动改成版本号，改了网页资源务必重新构建
+const CACHE = 'mankiw-macro-20261025-104150';   // 构建时由 tools/build_web.py 自动改成版本号，改了网页资源务必重新构建
 const IMAGES = [
   './data/images/c10_img0.png',
   './data/images/c10_img1.png',
@@ -57,6 +57,8 @@ const IMAGES = [
   './data/images/c6_img5.png',
   './data/images/c6_img6.png',
   './data/images/c6_img7.png',
+  './data/images/c8_eqA.png',
+  './data/images/c8_eqB.png',
   './data/images/c8_img0.png',
   './data/images/c8_img1.png',
   './data/images/c8_img2.png',
@@ -83,7 +85,7 @@ const CORE = [
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE)
-      .then(c => Promise.allSettled(CORE.map(u => c.add(u)).concat(IMAGES.map(u => c.add(u))).concat(IMAGES.map(u => c.add(u)).concat(IMAGES.map(u => c.add(u))))))
+      .then(c => Promise.allSettled(CORE.map(u => c.add(u)).concat(IMAGES.map(u => c.add(u)))))
       .then(() => self.skipWaiting())
   );
 });

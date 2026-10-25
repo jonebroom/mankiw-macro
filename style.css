@@ -260,6 +260,8 @@ main > * { animation: fadeUp .18s ease; }
 }
 .opt .opt-letter { font-family: var(--serif); font-weight: 700; margin-right: 8px; color: var(--accent); }
 .opt .opt-zh { display: block; color: var(--muted); font-size: 13px; margin-top: 3px; }
+/* 选项里的公式图（8-35 那种 Equation Editor 公式）不要撑高按钮 */
+.opt img { max-height: 56px; max-width: 100%; vertical-align: middle; }
 .opt.correct { border-color: var(--ok); background: var(--ok-soft); }
 .opt.correct .opt-letter { color: var(--ok); }
 .opt.wrong { border-color: var(--bad); background: var(--bad-soft); }

@@ -133,9 +133,11 @@ function wrapWords(escapedHtml) {
 function renderRich(text) {
   const s = String(text == null ? '' : text);
   const re = /\[\[IMG:([^\]]+)\]\]/g;
-  // 图片先抽成占位符，避免后面的分行/表格处理打乱它
+  // 图片先抽成占位符，避免后面的分行/表格处理打乱它。
+  // 占位符只用私用区字符 + 数字：里面不能出现字母，否则 wrapWords 会把
+  // "IMG0" 当成单词包上 <span class="w">，占位符就再也拼不回来了。
   const imgs = [];
-  const t = s.replace(re, (m, f) => { imgs.push(f); return '\u0000IMG' + (imgs.length - 1) + '\u0000'; });
+  const t = s.replace(re, (m, f) => { imgs.push(f); return '\uE000' + (imgs.length - 1) + '\uE001'; });
   // 逐行渲染：含 " | " 的连续行当作表格，其余按行输出并换行
   const lines = t.split('\n');
   let out = '', i = 0;
@@ -155,7 +157,7 @@ function renderRich(text) {
     if (i < lines.length) out += '<br>';
   }
   // 图片放回
-  return out.replace(/\u0000IMG(\d+)\u0000/g, (m, n) => `<img src="data/images/${esc(imgs[+n])}" alt="">`);
+  return out.replace(/\uE000(\d+)\uE001/g, (m, n) => `<img src="data/images/${esc(imgs[+n])}" alt="">`);
 }
 function lookupOne(w) {
   if (DICT[w]) return { word: w, meaning: DICT[w] };
@@ -717,9 +719,9 @@ function renderOptions(el, q, k, last) {
     b.className = 'opt';
     // 中文模式：只显示中文；对照模式：英文 + 中文小字；英文模式：纯英文
     b.innerHTML = lang === 'zh'
-      ? `<span class="opt-letter">${letters[i]}.</span> ${esc((zhOpts && zhOpts[i]) || o)}`
+      ? `<span class="opt-letter">${letters[i]}.</span> ${renderRich((zhOpts && zhOpts[i]) || o)}`
       : `<span class="opt-letter">${letters[i]}.</span> ${renderRich(o)}` +
-        (lang === 'both' && zhOpts && zhOpts[i] ? `<span class="opt-zh">${esc(zhOpts[i])}</span>` : '');
+        (lang === 'both' && zhOpts && zhOpts[i] ? `<span class="opt-zh">${renderRich(zhOpts[i])}</span>` : '');
     // 双击才作答：单击留给"点词查词"，避免想查个词却把题答了
     b.addEventListener('dblclick', (e) => {
       if (e.target && e.target.closest && e.target.closest('.w')) return;  // 双击在单词上 → 只查词
@@ -1167,9 +1169,9 @@ function renderExamRun(el) {
     const b = document.createElement('button');
     b.className = 'opt' + (sel === letters[i] ? ' selected' : '');
     b.innerHTML = lang === 'zh'
-      ? `<span class="opt-letter">${letters[i]}.</span> ${esc((zhOpts && zhOpts[i]) || o)}`
+      ? `<span class="opt-letter">${letters[i]}.</span> ${renderRich((zhOpts && zhOpts[i]) || o)}`
       : `<span class="opt-letter">${letters[i]}.</span> ${renderRich(o)}` +
-        (lang === 'both' && zhOpts && zhOpts[i] ? `<span class="opt-zh">${esc(zhOpts[i])}</span>` : '');
+        (lang === 'both' && zhOpts && zhOpts[i] ? `<span class="opt-zh">${renderRich(zhOpts[i])}</span>` : '');
     // 双击才选中：单击留给"点词查词"，避免误选
     b.addEventListener('dblclick', (e) => {
       if (e.target && e.target.closest && e.target.closest('.w')) return;
