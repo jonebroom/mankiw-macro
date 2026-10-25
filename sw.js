@@ -1,6 +1,70 @@
 /* Service Worker —— 让网页首次打开后可以完全离线使用
    注意：file:// 直接双击打开时浏览器不允许注册 SW，此时靠 data.js 内联数据仍可离线运行。 */
-const CACHE = 'mankiw-macro-20261025-090830';   // 构建时由 tools/build_web.py 自动改成版本号，改了网页资源务必重新构建
+const CACHE = 'mankiw-macro-20261025-093548';   // 构建时由 tools/build_web.py 自动改成版本号，改了网页资源务必重新构建
+const IMAGES = [
+  './data/images/c10_img0.png',
+  './data/images/c10_img1.png',
+  './data/images/c10_img2.png',
+  './data/images/c10_img3.png',
+  './data/images/c10_img4.png',
+  './data/images/c10_img5.png',
+  './data/images/c11_img0.png',
+  './data/images/c11_img1.png',
+  './data/images/c11_img2.png',
+  './data/images/c11_img3.png',
+  './data/images/c11_img4.png',
+  './data/images/c11_img5.png',
+  './data/images/c11_img6.png',
+  './data/images/c12_img0.png',
+  './data/images/c12_img1.png',
+  './data/images/c12_img10.png',
+  './data/images/c12_img2.png',
+  './data/images/c12_img3.png',
+  './data/images/c12_img4.png',
+  './data/images/c12_img5.png',
+  './data/images/c12_img6.png',
+  './data/images/c12_img7.png',
+  './data/images/c12_img8.png',
+  './data/images/c12_img9.png',
+  './data/images/c14_img0.png',
+  './data/images/c14_img1.png',
+  './data/images/c14_img2.png',
+  './data/images/c14_img3.png',
+  './data/images/c14_img4.png',
+  './data/images/c14_img5.png',
+  './data/images/c14_img6.png',
+  './data/images/c16_img0.png',
+  './data/images/c16_img1.png',
+  './data/images/c16_img2.png',
+  './data/images/c1_img0.png',
+  './data/images/c2_img0.png',
+  './data/images/c2_img1.png',
+  './data/images/c2_img2.png',
+  './data/images/c3_img0.png',
+  './data/images/c3_img1.png',
+  './data/images/c3_img2.png',
+  './data/images/c3_img3.png',
+  './data/images/c3_img4.png',
+  './data/images/c3_img5.png',
+  './data/images/c4_img0.png',
+  './data/images/c4_img1.png',
+  './data/images/c4_img2.png',
+  './data/images/c6_img0.png',
+  './data/images/c6_img1.png',
+  './data/images/c6_img2.png',
+  './data/images/c6_img3.png',
+  './data/images/c6_img4.png',
+  './data/images/c6_img5.png',
+  './data/images/c6_img6.png',
+  './data/images/c6_img7.png',
+  './data/images/c8_img0.png',
+  './data/images/c8_img1.png',
+  './data/images/c8_img2.png',
+  './data/images/c8_img3.png',
+  './data/images/c8_img4.png',
+  './data/images/c8_img5.png',
+  './data/images/c8_img6.png',
+];
 const CORE = [
   './',
   './index.html',
@@ -19,7 +83,7 @@ const CORE = [
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE)
-      .then(c => Promise.allSettled(CORE.map(u => c.add(u))))
+      .then(c => Promise.allSettled(CORE.map(u => c.add(u)).concat(IMAGES.map(u => c.add(u))).concat(IMAGES.map(u => c.add(u)).concat(IMAGES.map(u => c.add(u))))))
       .then(() => self.skipWaiting())
   );
 });

@@ -133,14 +133,29 @@ function wrapWords(escapedHtml) {
 function renderRich(text) {
   const s = String(text == null ? '' : text);
   const re = /\[\[IMG:([^\]]+)\]\]/g;
-  let out = '', last = 0, m;
-  while ((m = re.exec(s))) {
-    out += wrapWords(esc(s.slice(last, m.index)));
-    out += `<img src="data/images/${esc(m[1])}" alt="">`;
-    last = m.index + m[0].length;
+  // 图片先抽成占位符，避免后面的分行/表格处理打乱它
+  const imgs = [];
+  const t = s.replace(re, (m, f) => { imgs.push(f); return '\u0000IMG' + (imgs.length - 1) + '\u0000'; });
+  // 逐行渲染：含 " | " 的连续行当作表格，其余按行输出并换行
+  const lines = t.split('\n');
+  let out = '', i = 0;
+  while (i < lines.length) {
+    if (lines[i].indexOf(' | ') >= 0) {
+      const rows = [];
+      while (i < lines.length && lines[i].indexOf(' | ') >= 0) { rows.push(lines[i]); i++; }
+      out += '<table class="qtbl">' + rows.map((r, ri) => {
+        const cells = r.split('|').map(c => c.trim());
+        const tag = ri === 0 ? 'th' : 'td';
+        return '<tr>' + cells.map(c => `<${tag}>${wrapWords(esc(c))}</${tag}>`).join('') + '</tr>';
+      }).join('') + '</table>';
+    } else {
+      out += wrapWords(esc(lines[i]));
+      i++;
+    }
+    if (i < lines.length) out += '<br>';
   }
-  out += wrapWords(esc(s.slice(last)));
-  return out;
+  // 图片放回
+  return out.replace(/\u0000IMG(\d+)\u0000/g, (m, n) => `<img src="data/images/${esc(imgs[+n])}" alt="">`);
 }
 function lookupOne(w) {
   if (DICT[w]) return { word: w, meaning: DICT[w] };

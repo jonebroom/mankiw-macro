@@ -228,6 +228,11 @@ main > * { animation: fadeUp .18s ease; }
 .q-meta .muted { flex-shrink: 0; }
 .q-stem { font-size: 17px; font-weight: 500; margin-bottom: 14px; white-space: pre-wrap; }
 .q-stem img { max-width: 100%; border-radius: 6px; }
+/* 题干里还原出来的表格 */
+.qtbl { border-collapse: collapse; margin: 10px 0 14px; font-size: 14.5px; font-weight: 400; background: var(--card); }
+.qtbl th, .qtbl td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; }
+.qtbl th { background: var(--bg-soft); font-weight: 600; }
+.qtbl td { white-space: normal; }
 .q-zh {
   font-size: 14.5px; color: var(--muted); margin: -6px 0 14px;
   padding: 10px 14px; background: var(--zh-bg); border-radius: 0 8px 8px 0;
